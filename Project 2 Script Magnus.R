@@ -100,7 +100,6 @@ mcmc <- function(N){
   t <- proc.time()[3]
   print(t-t0)
   return(pi)
-  
 }
 
 
@@ -112,10 +111,8 @@ mcmc2 <- function(N){
   
   T <- length(rain$day)
   
-  pi <- matrix(nrow = N+1, ncol = T)
   tau <- matrix(nrow = N+1, ncol = T)
-  pi[1,] <- rep(0.3,T)
-  tau[1,] <- pi_inv(pi[1,])
+  tau[1,] <- rep(pi_inv(0.3), T)
   
   
   
@@ -128,9 +125,6 @@ mcmc2 <- function(N){
   
   
   sigma_squared <- c(1:N)*0
-  
-  
-  
   
   
   for (i in c(1:N)){
@@ -150,47 +144,36 @@ mcmc2 <- function(N){
         new_tau_d <- rnorm(n=1, mean = 1/2*(tau[i,d-1]+tau[i,d+1]), sd = sigma/sqrt(2))
       }
       
-      
-      new_tau <- tau[i,]
-      new_tau[d] <- new_tau_d
-      new_pi <- pi_func(new_tau)
-      
-      u <- runif(1)
-      
       #logprob <- 0
       
       #for (d in c(1:T)){
       #  logprob = logprob + log(dbinom(rain$n.rain[d], size = rain$n.years[d], new_pi[d])) - log(dbinom(rain$n.rain[d], size = rain$n.years[d], pi[d]))
       #}
       
-      prob <- dbinom(rain$n.rain[d], size = rain$n.years[d], new_pi[d])/dbinom(rain$n.rain[d], size = rain$n.years[d], pi[i,d])
+      old_tau_d <- tau[i, d]
       
+      prob <- dbinom(rain$n.rain[d], size = rain$n.years[d], pi_func(new_tau_d))/dbinom(rain$n.rain[d], size = rain$n.years[d], pi_func(old_tau_d))
+      
+      u <- runif(1)
+    
       if (u < min(1, prob)){
-        tau[(i+1),] <- new_tau
-        pi[(i+1),] <- new_pi
+        tau[i, d] <- new_tau_d
       }
       else{
-        tau[(i+1),] <- tau[i,]
-        pi[(i+1),] <- pi[i,]
+        #tau[i, d] <- old_tau_d
       }
-      
     }
     
+    tau[(i+1),] <- tau[i,]
   }
+  
   t <- proc.time()[3]
   print(t-t0)
-  return(pi)
   
+  apply(tau, 2, pi_func)
 }
 
-
-
-
-
-
-
-mcmcpi <- mcmc2(ceiling(500000/366))
-ceiling(500000/366)
-plot(mcmcpi[1366,])
+mcmcpi <- mcmc2(5000)
+plot(mcmcpi[5000,])
 plot(rain$n.rain/rain$n.years)
 
