@@ -1,5 +1,6 @@
 ---
 title: "TMA4300 Project 2"
+author: "Magnus Grytten & Petter J. Gudbrandsen"
 output: pdf_document
 ---
 
@@ -7,22 +8,52 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r}
+# Import classes
+library("INLA")
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+# Load data 
+load("rain.rda") # set working directory correctly
 ```
 
-## Including Plots
+# Problem 1
 
-You can also embed plots, for example:
+a) Explore the Tokyo rainfall dataset, plot the response as a function of t, and describe any patterns that you see.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r figs, fig.cap='plotting example'}
+plot(rain$day, rain$n.rain, xlab = 'Day of the year', ylab = '# years with rain')
 ```
+The plot shows the number of days with rain in each day of the year over a period of 39 years.
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+During the winter period there is little rain. It increases during the spring. After that it seems to have two 'down' bumps during the summer. During the autumn, from about day 275 and until new year, it decreases.
+
+The points seem to follow a continuous function with a similar error around it throughout the year.
+
+b)
+
+$$
+p(y|)
+
+
+$$
+
+
+
+c)
+
+
+d)
+
+
+e)
+
+
+f)
+
+# Problem 2
+
+a)
+
+b)
+
+c)
