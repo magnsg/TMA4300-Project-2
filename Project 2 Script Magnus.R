@@ -127,9 +127,6 @@ mcmc2 <- function(N){
   sigma_squared <- c(1:N)*0
   
   
-  
-  
-  
   for (i in c(1:N)){
     sigma_squared[i] <- rinvgamma(n = 1, shape = alpha + (T-1)/2, scale = beta + 1/2 * t(tau[i,]) %*% Q %*% tau[i,] )
     sigma <- sqrt(sigma_squared[i])
@@ -160,12 +157,14 @@ mcmc2 <- function(N){
       u <- runif(1)
     
       if (u < min(1, prob)){
-        tau[(i+1), d] <- new_tau_d
+        tau[i, d] <- new_tau_d
       }
       else{
-        tau[(i+1), d] <- old_tau_d
+        #tau[i, d] <- old_tau_d
       }
     }
+    
+    tau[(i+1),] <- tau[i,]
   }
   
   t <- proc.time()[3]
@@ -175,7 +174,6 @@ mcmc2 <- function(N){
 }
 
 mcmcpi <- mcmc2(5000)
-ceiling(500000/366)
-plot(mcmcpi[1366,])
+plot(mcmcpi[5000,])
 plot(rain$n.rain/rain$n.years)
 
