@@ -1,0 +1,135 @@
+---
+title: "TMA4300 Project 2"
+author: "Magnus Grytten & Petter J. Gudbrandsen"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Import classes
+library("INLA")
+
+# Load data 
+load("rain.rda") # set working directory correctly
+```
+
+# Problem 1
+
+a) Explore the Tokyo rainfall dataset, plot the response as a function of t, and describe any patterns that you see.
+
+```{r figs, fig.cap='plotting example'}
+plot(rain$day, rain$n.rain, xlab = 'Day of the year', ylab = '# years with rain')
+```
+C: The plot shows the number of days with rain in each day of the year over a period of 39 years.
+
+During the winter period there is little rain. It increases during the spring. After that it seems to have two 'down' bumps during the summer. During the autumn, from about day 275 and until new year, it decreases.
+
+The points seem to follow a continuous function with a similar error around it throughout the year.
+
+b)
+
+$$
+p(y_t|\pi(\tau_t)) = \binom{n_t}{y_t} \pi(\tau_t)^{y_t}(1 - \pi(\tau_t))^{n_t - y_t}
+$$
+c)
+$$
+p(\sigma^2|\textbf{y}, \boldsymbol{\tau})
+
+\propto
+p(\textbf{y}, \boldsymbol{\tau} | \sigma^2) \cdot p(\sigma^2) \\
+
+=
+p(\textbf{y} | \boldsymbol{\tau}, \sigma^2) \cdot p(\boldsymbol{\tau} | \textbf{y}, \sigma^2) \cdot p(\sigma^2) \\
+
+=
+p(\textbf{y} | \boldsymbol{\tau}) \cdot p(\boldsymbol{\tau} | \sigma^2) \cdot p(\sigma^2) \\
+
+=
+\prod_{t=1}^T \binom{n_t}{y_t} \pi(\tau_t)^{y_t}(1 - \pi(\tau_t))^{n_t - y_t} \\
+\cdot
+\prod_{t=2}^T \frac{1}{\sigma_u} e^{-\frac{1}{2\sigma_u^2} (\tau_t - \tau_{t-1})^2} \\
+\cdot
+\frac{\beta^\alpha}{\Gamma(\alpha)} (\frac{1}{\sigma_u^2})^{\alpha + 1} e^{-\frac{\beta}{\sigma_u^2}} \\
+
+\text{We remove factors without } \sigma_u. \\
+
+\propto
+\prod_{t=2}^T \frac{1}{\sigma_u} e^{-\frac{1}{2\sigma_u^2} (\tau_t - \tau_{t-1})^2}
+\cdot
+(\frac{1}{\sigma_u^2})^{\alpha + 1}
+\cdot
+e^{-\frac{\beta}{\sigma_u^2}} \\
+
+=
+\frac{1}{\sigma_u^{T-1}} e^{-\frac{1}{2\sigma_u^2}  \boldsymbol{\tau}^t \boldsymbol{Q\tau}}
+\cdot
+(\frac{1}{\sigma_u^{2}})^{\alpha + 1}
+\cdot
+e^{-\frac{\beta}{\sigma_u^2}} \\
+
+=
+(\frac{1}{\sigma_u^2})^{\alpha + 1 + \frac{T-1}{2}} e^{-\frac{1}{2\sigma_u^2}  (\boldsymbol{\tau}^t \boldsymbol{Q\tau} + \beta)} \\
+
+\text{The last expression has the format of an inverse gamma distribution with} \\
+IG \sim (\alpha + \frac{T-1}{2}, \frac{\boldsymbol{\tau}^t \boldsymbol{Q\tau} + \beta}{2}) \\
+\text{for shape α and rate β.}
+$$
+
+
+d)
+$$
+\begin{equation}
+
+\alpha 
+= min(1, 
+\frac
+{p(\boldsymbol{\tau'}_I, \sigma^2 | \boldsymbol{y}) 
+\cdot 
+p(\boldsymbol{\tau}_I | \boldsymbol{\tau'}_{-I}, \sigma^2)}
+
+{p(\boldsymbol{\tau}_I, \sigma^2 | \boldsymbol{y}) 
+\cdot 
+p(\boldsymbol{\tau'}_I | \boldsymbol{\tau}_{-I}, \sigma^2}) 
+
+\end{equation}
+
+
+
+\\
+
+
+p(\boldsymbol{\tau}, \sigma^2 | \boldsymbol{y})
+
+\propto
+p(\boldsymbol{y} | \boldsymbol{\tau}, \sigma^2) \cdot p(\boldsymbol{\tau}, \sigma^2) \\
+
+=
+p(\boldsymbol{y} | \boldsymbol{\tau}) \cdot p(\boldsymbol{\tau} | \sigma^2) \cdot p(\sigma^2) \\
+
+=
+p(\boldsymbol{y}_I | \boldsymbol{\tau}_I) 
+\cdot
+p(\boldsymbol{y}_{-I} | \boldsymbol{\tau}_{-I}) 
+\cdot 
+p(\boldsymbol{\tau}_I | \sigma^2) 
+\cdot 
+p(\boldsymbol{\tau}_{-I} | \boldsymbol{\tau}_I, \sigma^2) 
+\cdot 
+p(\sigma^2) \\
+
+$$
+e)
+
+
+f)
+fd
+# Problem 2
+
+a)
+
+b)
+
+c)
