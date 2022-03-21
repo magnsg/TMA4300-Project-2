@@ -25,11 +25,12 @@ pi_inv <- function(pi){
 
 dnormal <- function(my,chol_sig,n) {
   d = length(my)
-  y <- matrix(nrow=n, ncol=d)
-  x <- matrix(rnorm(n), d, n)
+  #y <- matrix(nrow=n, ncol=d)
+  x <- matrix(rnorm(d), d, n)
   A = chol_sig
-  my_matrix <- matrix(rep(my,n), nrow=d, ncol=n)
-  y <- my_matrix + A%*%x
+  #my_matrix <- matrix(rep(my,n), nrow=d, ncol=n)
+  #y <- my_matrix + A%*%x
+  y <- my + A%*%x
   return(y)
 }
 
@@ -155,7 +156,7 @@ mcmc_block<- function(N,M){
   
   for (i in c(1:N)){
     sigma_squared[i] <- rinvgamma(n = 1, shape = alpha + (T-1)/2, scale = beta + 1/2 * t(tau[i,]) %*% Q %*% tau[i,] )
-    #sigma <- sqrt(sigma_squared[i])
+    sigma <- sqrt(sigma_squared[i])
     
     
     for (d in c(1:Num_blocks)){
@@ -164,21 +165,21 @@ mcmc_block<- function(N,M){
         a <- 1
         b <- M
         #new_tau_d <- mvrnorm(n=1, mu = QQ_first%*%tau[i,b+1], Sigma = sigma_squared[i]*Q_inv_first)
-        new_tau_d <- dnormal(my = QQ_first%*%tau[i,b+1], chol_sig = sigma_squared[i]*chol_first, n = 1)
+        new_tau_d <- dnormal(my = QQ_first%*%tau[i,b+1], chol_sig = sigma*chol_first, n = 1)
         #new_tau_d <- rnorm(n=1, mean = tau[i,d+1], sd = sigma)
       }
       else if (d == Num_blocks){
         a <- T - M_last + 1
         b <- T
         #new_tau_d <- mvrnorm(n=1, mu = QQ_last%*%tau[i,a-1], Sigma = sigma_squared[i]*Q_inv_last)
-        new_tau_d <- dnormal(my = QQ_last%*%tau[i,a-1], chol_sig = sigma_squared[i]*chol_last, n = 1)
+        new_tau_d <- dnormal(my = QQ_last%*%tau[i,a-1], chol_sig = sigma*chol_last, n = 1)
         #new_tau_d <- rnorm(n=1, mean = tau[i,d-1], sd = sigma)
       }
       else{
         a <- (d-1)*M + 1
         b <- d*M
         #new_tau_d <- mvrnorm(n=1, mu = QQ_mid%*%c(tau[i,a-1],tau[i,b+1]), Sigma = sigma_squared[i]*Q_inv_mid)
-        new_tau_d <- dnormal(my = QQ_mid%*%c(tau[i,a-1],tau[i,b+1]), chol_sig = sigma_squared[i]*chol_mid, n = 1)
+        new_tau_d <- dnormal(my = QQ_mid%*%c(tau[i,a-1],tau[i,b+1]), chol_sig = sigma*chol_mid, n = 1)
         #new_tau_d <- rnorm(n=1, mean = 1/2*(tau[i,d-1]+tau[i,d+1]), sd = sigma/sqrt(2))
       }
       
@@ -213,13 +214,23 @@ mcmc_block<- function(N,M){
   apply(tau, 2, pi_func)
 }
 
-pipipi <- mcmc_block(5000,30)
-plot(pipipi[5000,])
+pipipi <- mcmc_block(1000,100)
+plot(pipipi[1000,])
 
-mcmcpi <- mcmc(5000)
-plot(mcmcpi[5000,])
+mcmcpi <- mcmc(1000)
+plot(mcmcpi[1000,])
 
 plot(rain$n.rain/rain$n.years)
+
+
+#2##2##2##2##2##2##2##2##2##2##2##2#
+
+
+library(INLA)
+
+
+
+
 
 
 
