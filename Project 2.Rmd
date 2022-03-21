@@ -32,9 +32,7 @@ The points seem to follow a continuous function with a similar error around it t
 b)
 
 $$
-p(y|)
-
-
+\alpha = 2
 $$
 
 
