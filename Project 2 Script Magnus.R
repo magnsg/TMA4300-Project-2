@@ -228,8 +228,30 @@ plot(rain$n.rain/rain$n.years)
 
 library(INLA)
 
+use_INLA <- function(){
+  t0 <-proc.time()[3]
+  
+  control.inla = list(strategy="simplified.laplace", int.strategy="ccd")
+  mod <- inla(n.rain ~ -1 + f(day, model="rw1", constr=FALSE),
+              data=rain, Ntrials=n.years, control.compute=list(config = TRUE),
+              family="binomial", verbose=TRUE, control.inla=control.inla)
+  
+  
+  
+  t <-proc.time()[3]
+  print(t-t0)
+  
+  return(mod)
+}
 
+model <- use_INLA()
 
+model$summary.hyperpar
+
+summary(model)
+
+m = model$marginals.fitted.values
+print(m)
 
 
 
