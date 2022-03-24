@@ -214,11 +214,11 @@ mcmc_block<- function(N,M){
   apply(tau, 2, pi_func)
 }
 
-pipipi <- mcmc_block(1000,100)
-plot(pipipi[1000,])
+blockpi <- mcmc_block(50000,50)
+plot(blockpi[50000,])
 
-mcmcpi <- mcmc(1000)
-plot(mcmcpi[1000,])
+siglepi <- mcmc(50000)
+plot(siglepi[50000,])
 
 plot(rain$n.rain/rain$n.years)
 
@@ -231,10 +231,22 @@ library(INLA)
 use_INLA <- function(){
   t0 <-proc.time()[3]
   
+  loginvgamma = "expression:
+                  a = 2;
+                  b = 0.05;
+                  precision = exp(log_precision);
+                  logdens = log(b^a) - lgamma(a)
+                  - (a+1)*(log_precision) - b/precision;
+                  return(logdens);"
+  
+  hyper = list(prec = list(prior = loginvgamma))
+  
+  
   control.inla = list(strategy="simplified.laplace", int.strategy="ccd")
-  mod <- inla(n.rain ~ -1 + f(day, model="rw1", constr=FALSE),
+  mod <- inla(n.rain ~ -1 + f(day, model="rw1", constr=FALSE, hyper = hyper),
               data=rain, Ntrials=n.years, control.compute=list(config = TRUE),
               family="binomial", verbose=TRUE, control.inla=control.inla)
+  
   
   
   
@@ -250,10 +262,10 @@ model$summary.hyperpar
 
 summary(model)
 
-m = model$marginals.fitted.values
-print(m)
+plot(model$summary.fitted.values$mean)
 
 
+names(inla.models()$prior)
 
 
 
