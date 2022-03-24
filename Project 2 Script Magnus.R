@@ -57,7 +57,7 @@ mcmc <- function(N){
   Q[T,T] <- 1
   
   
-  sigma_squared <- c(1:N)*0
+  sigma_squared <- c(1:N+1)*0
   
   
   for (i in c(1:N)){
@@ -94,10 +94,14 @@ mcmc <- function(N){
     tau[(i+1),] <- tau[i,]
   }
   
+  sigma_squared[N+1] <- sigma_squared[N]
+  
   t <- proc.time()[3]
   print(t-t0)
   
-  apply(tau, 2, pi_func)
+  result <- list(pi = apply(tau, 2, pi_func), sigma_squared = sigma_squared)
+  
+  return(result)
 }
 
 
@@ -151,7 +155,7 @@ mcmc_block<- function(N,M){
   
   
   
-  sigma_squared <- c(1:N)*0
+  sigma_squared <- c(1:N+1)*0
   
   
   for (i in c(1:N)){
@@ -208,14 +212,21 @@ mcmc_block<- function(N,M){
     tau[(i+1),] <- tau[i,]
   }
   
+  sigma_squared[N+1] <- sigma_squared[N]
+  
   t <- proc.time()[3]
   print(t-t0)
   
-  apply(tau, 2, pi_func)
+  result <- list(pi = apply(tau, 2, pi_func), sigma_squared = sigma_squared)
+  
+  return(result)
+  
 }
 
-blockpi <- mcmc_block(50000,50)
-plot(blockpi[50000,])
+blockres <- mcmc_block(500,50)
+print(blockres$sigma_squared[500])
+plot(blockres$pi[500,])
+
 
 siglepi <- mcmc(50000)
 plot(siglepi[50000,])
@@ -262,10 +273,41 @@ model$summary.hyperpar
 
 summary(model)
 
+names(model$summary.fitted.values)
+
 plot(model$summary.fitted.values$mean)
 
+#plot(model$summary.fitted.values$`0.975quant`)
+#plot(model$summary.fitted.values$`0.025quant`)
+for (i in c(1,201,366)){
+  print(model$summary.fitted.values$`0.025quant`[i])
+  print(model$summary.fitted.values$`0.975quant`[i])
+  print("------------------------------------------")
+}
+print(model$summary.fitted.values$`0.025quant`[1])
 
-names(inla.models()$prior)
+
+
+print(model$summary.hyperpar)
+print(model$internal.summary.hyperpar)
+print(model$summary.fixed)
+print(model$summary.linear.predictor)
+inla.doc('X')
+?control.fixed
+?control.inla
+
+
+
+
+test <- function(a,b){
+  ab <- a*b
+  b <- b
+  
+  data.frame(ab,b)
+  
+}
+
+print(test(2,2)$ab)
 
 
 

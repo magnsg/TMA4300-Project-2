@@ -14,6 +14,7 @@ library("INLA")
 library(invgamma)
 library(matlib)
 library(MASS)
+library(latex2exp)
 
 # Load data 
 load("rain.rda") # set working directory correctly
@@ -199,9 +200,238 @@ $$
 {p(\boldsymbol{y}_I | \boldsymbol{\tau}_I) })
 \end{aligned}
 $$
+## e)
+First we make some functions that we are going to need for the sampler,
+```{r}
+# Tau to pi
+pi_func <- function(tau){
+  1/(1+exp(-tau))
+}
+
+# Pi to tau
+pi_inv <- function(pi){
+  log(pi/(1-pi))
+}
+```
+
+We have that $\tau_t$ is normaly distributed with mean $\boldsymbol{Q}_{t,t}^{-1}\boldsymbol{Q}_{t,-t}\boldsymbol{\tau}_{-t}$ and variance $\sigma^2\boldsymbol{Q}_{t,t}^{-1}$, however since $Q$ is mostly zeroes we can simplify this.
+Simplifying we get,
+$$
+\begin{aligned}
+\tau_1 \sim & N(\tau_2, \sigma^2) \\
+\tau_{1<t<T} \sim & N \left( \frac{1}{2}(\tau_{t-1}+\tau_{t-1}),\frac{1}{2}\sigma^2) \right) \\
+\tau_T \sim & N(\tau_{T-1}, \sigma^2)
+\end{aligned}
+$$
 
 
+```{r}
+mcmc <- function(N){
+  t0 <-proc.time()[3]
+  accepted_count <- 0
+  count <- 0
+  
+  alpha <- 2
+  beta <- 0.05
+  
+  T <- length(rain$day)
+  
+  tau <- matrix(nrow = N+1, ncol = T)
+  tau[1,] <- rep(pi_inv(0.3), T) #Setting tau to be the aproximate mean of yt/nt
+  
+  
+  #Make Q matrix
+  Q <- matrix(data = 0,nrow = T, ncol = T)
+  diag(Q) <- rep(2,T)
+  diag(Q[-nrow(Q),-1]) <- rep(-1,T-1)
+  diag(Q[-1,-ncol(Q)]) <- rep(-1,T-1)
+  Q[1,1] <- 1
+  Q[T,T] <- 1
+  
+  
+  sigma_squared <- 1:N
+  
+  
+  for (i in c(1:N)){
+    #Sampling sigma from the conditional found in task c
+    sigma_squared[i] <- rinvgamma(n = 1, shape = alpha + (T-1)/2,
+                                  scale = beta + 1/2 * t(tau[i,]) %*% Q %*% tau[i,] )
+    sigma <- sqrt(sigma_squared[i])
+    
+    
+    for (d in c(1:T)){
+      
+      #Sampling tau from precomputed distribution
+      if (d == 1){
+        new_tau_d <- rnorm(n=1, mean = tau[i,d+1], sd = sigma)
+      }
+      else if (d == T){
+        new_tau_d <- rnorm(n=1, mean = tau[i,d-1], sd = sigma)
+      }
+      else{
+        new_tau_d <- rnorm(n=1, mean = 1/2*(tau[i,d-1]+tau[i,d+1]), sd = sigma/sqrt(2))
+      }
+      
+      old_tau_d <- tau[i, d]
+      
+      #Calculate acceptance probability
+      prob <- dbinom(rain$n.rain[d], size = rain$n.years[d], pi_func(new_tau_d))/
+              dbinom(rain$n.rain[d], size = rain$n.years[d], pi_func(old_tau_d))
+      
+      u <- runif(1)
+      if (u < min(1, prob)){
+        tau[i, d] <- new_tau_d
+        accepted_count <- accepted_count + 1
+      }
+    }
+    
+    tau[(i+1),] <- tau[i,]
+  }
+  
+  print('Processing time:')
+  print(proc.time()[3] - t0)
+  
+  print('Acceptance probability:')
+  print(accepted_count / (366*N))
+  
+  list(
+    pi = apply(tau, 2, pi_func),
+    sigma_squared = sigma_squared
+  )
+}
+
+mcmc_results <- mcmc(5000)
+```
+
+```{r}
+plot(rain$n.rain/rain$n.years, ylab='', xlab = 't', col = 'Red')
+points(mcmc_results$pi[5000,])
+legend('topleft', legend=c(TeX(r'($\pi(\tau_t)$)'), TeX(r'($y_t/n_t$)')), col=c("black", "red"), pch=c(1,1))
+```
 
 
+## f)
 
+```{r}
+# Sample from MVN using a given cholesky decomposition
+dnormal <- function(my,chol_sig,n) {
+  d = length(my)
+  x <- matrix(rnorm(d), d, n)
+  A = chol_sig
+  y <- my + A%*%x
+  return(y)
+}
+```
+
+As in the last task we do some precomputation such that it will be faster to calculate the mean and the covariance matrix for the multivariate normal distributions, we also calculate the cholesky decomostition to make the sampling faster.
+```{r}
+mcmc_block<- function(N,M){
+  t0 <-proc.time()[3]
+  
+  alpha <- 2
+  beta <- 0.05
+  
+  T <- length(rain$day)
+  
+  tau <- matrix(nrow = N+1, ncol = T)
+  tau[1,] <- rep(pi_inv(0.3), T)
+  
+  #Make Q matrix
+  Q <- matrix(data = 0,nrow = T, ncol = T)
+  diag(Q) <- rep(2,T)
+  diag(Q[-nrow(Q),-1]) <- rep(-1,T-1)
+  diag(Q[-1,-ncol(Q)]) <- rep(-1,T-1)
+  Q[1,1] <- 1
+  Q[T,T] <- 1
+  
+  #Find size of last block and number of blocks
+  M_last <- T%%M
+  Num_blocks <- T%/%M+1
+  
+  
+  #Precompute -QAA^-1*QAB and the Cholesky decomposition of QAA^-1
+  #for the first, middle, and last blocks
+  Q_first <- Q[1:M,1:M]
+  QAB_first <- c(rep(0,M-1),-1)
+  Q_inv_first <- inv(Q_first)
+  chol_first <- t(chol(Q_inv_first))
+  QQ_first <- -Q_inv_first%*%QAB_first
+  
+  Q_mid <- Q[(M+1):(2*M),(M+1):(2*M)]
+  QAB_mid <- matrix(data = 0, nrow = M, ncol = 2)
+  QAB_mid[1,1] <- -1
+  QAB_mid[M,2] <- -1
+  Q_inv_mid <- inv(Q_mid)
+  chol_mid <- t(chol(Q_inv_mid))
+  QQ_mid <- -Q_inv_mid%*%QAB_mid
+  
+  Q_last <- Q[(T-M_last+1):T,(T-M_last+1):T]
+  QAB_last <- c(-1,rep(0,M_last-1))
+  Q_inv_last <- inv(Q_last)
+  chol_last <- t(chol(Q_inv_last))
+  QQ_last <- -Q_inv_last%*%QAB_last
+  
+  sigma_squared <- c(1:N+1)*0
+  
+  for (i in c(1:N)){
+    #Sampling sigma from the conditional found in task c
+    sigma_squared[i] <- rinvgamma(n = 1, shape = alpha + (T-1)/2,
+                                  scale = beta + 1/2 * t(tau[i,]) %*% Q %*% tau[i,] )
+    sigma <- sqrt(sigma_squared[i])
+    
+    #Sampling the taus using the precomputed data from earlier and defining
+    #the interval [a,b] for this block
+    for (d in c(1:Num_blocks)){
+      if (d == 1){
+        a <- 1
+        b <- M
+        new_tau_d <- dnormal(my = QQ_first*tau[i,b+1], chol_sig = sigma*chol_first, n = 1)
+      }
+      else if (d == Num_blocks){
+        a <- T - M_last + 1
+        b <- T
+        new_tau_d <- dnormal(my = QQ_last*tau[i,a-1], chol_sig = sigma*chol_last, n = 1)
+      }
+      else{
+        a <- (d-1)*M + 1
+        b <- d*M
+        new_tau_d <- dnormal(my = QQ_mid%*%c(tau[i,a-1],tau[i,b+1]), chol_sig = sigma*chol_mid, n = 1)
+      }
+      
+      old_tau <- tau[i,]
+      new_tau <- tau[i,]
+      new_tau[a:b] <- new_tau_d
+      
+      #Calculating the product of the probabilities in log scale
+      logprob <- 0
+      for (j in c(a:b)){
+        logprob = logprob + log(dbinom(rain$n.rain[j], size = rain$n.years[j],pi_func(new_tau[j]))) -
+                            log(dbinom(rain$n.rain[j], size = rain$n.years[j], pi_func(old_tau[j])))
+      }
+      
+      u <- runif(1)
+      
+      if (u < min(1, exp(logprob))){
+        tau[i,] <- new_tau
+      }
+    }
+    tau[(i+1),] <- tau[i,]
+  }
+  
+  sigma_squared[N+1] <- sigma_squared[N]
+  
+  t <- proc.time()[3]
+  print('Processing time:')
+  print(t-t0)
+  
+  result <- list(pi = apply(tau, 2, pi_func), sigma_squared = sigma_squared)
+  
+  return(result)
+}
+blockres <- mcmc_block(5000,50)
+```
+
+```{r}
+plot(blockres$pi[5000,], ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't')
+```
 
