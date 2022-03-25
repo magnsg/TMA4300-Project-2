@@ -299,22 +299,110 @@ mcmc <- function(N){
     sigma_squared = sigma_squared
   )
 }
+```
 
+# ```{r}
+# # Equi-taled credible interval. 
+# # Finds an interval where we estimate a minimum of 95% chance of getting new values
+# cred_int <- function(vec){
+#   vec <- sort(vec)
+#   len <- length(vec)
+#   size <- ceiling(0.95 * len)
+#   start_index <- floor((len - size) / 2) + 1
+# 
+#   list(vec[start_index], vec(start_index + size))
+# }
+# ```
+
+```{r}
+# Simulation
+N = 5000
+mcmc_sim <- mcmc(N)
+sim_pi <- matrix(unlist(mcmc_sim[1]), ncol = 366)
+sim_sigsq <- unlist(mcmc_sim[2])
+```
+
+We can set a burn-in period by looking at the plots below. The trace plots for day 1 and 366 drop fast in the first 150 simulations. Day 201 has an initial value close to its mean result and we therefore do not observe any unusual change in the beginning.
+
+The autocorrelation plots support this burn-in period. It shows that $\pi$ is correlated to its closest (approximately) 150  values.
+
+The sigma squared converges much faster, and we see there is only a correlation to the 10 closest sigmas.
+
+We remove the first 200 simulations to remove the effect of the burn in period.
+
+```{r}
+# Burn in removal
+sim_pi <- sim_pi[200:N, ]
+sim_sigsq <- sim_sigsq[200:N]
+N_new <- N - 200
 ```
 
 ```{r}
-mcmc_results <- mcmc(5000)
+# Traceplots
+plot(sim_pi[, 1], main = c('Rain probability trace day 1'), xlab = 'Simulation #', ylab = 'Rain probability')
+plot(sim_pi[, 201], main = c('Rain probability trace day 201'), xlab = 'Simulation #', ylab = 'Rain probability')
+plot(sim_pi[, 366], main = c('Rain probability trace day 366'), xlab = 'Simulation #', ylab = 'Rain probability')
+plot(1:N, sim_sigsq, main = 'Sigma squared trace', xlab = 'Simulation #', ylab = 'Sigma squared', ylim = c(0, 0.01))
 ```
-
 
 ```{r}
-mean_pi <- apply(mcmc_results$pi[200:5000,], 2, mean)
-plot(rain$n.rain/rain$n.years, ylab='', xlab = 't', col = 'Red')
-points(mean_pi)
-legend('topleft', legend=c(TeX(r'($\pi(\tau_t)$)'),TeX(r'($y_t/n_t$)')),
-       col=c("black", "red"), pch=c(1,1))
+# Histogram
+hist(sim_pi[, day], main = c('Day 1 rain probability histogram') freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
+hist(sim_pi[, day], main = c('Day 201 rain probability histogram') freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
+hist(sim_pi[, day], main = c('Day 366 rain probability histogram') freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
+hist(sim_sigsq, main = 'Sigma squared histogram' freq = TRUE, xlab = 'Sigma squared', ylab = 'Frequency', xlim = c(-0.1, 0.1), breaks = 0.001)
 ```
 
+```{r}
+# Autocorrelation
+acf_plot <- acf(sim_pi[, 1], lag.max = 2000, plot = FALSE)
+plot(acf_plot, main = c('Autocorrelation for day 1'),  xlab = 'Autocorrelation interval', ylab = 'Correlation')
+
+acf_plot <- acf(sim_pi[, 201], lag.max = 2000, plot = FALSE)
+plot(acf_plot, main = c('Autocorrelation for day 201'),  xlab = 'Autocorrelation interval', ylab = 'Correlation')
+
+acf_plot <- acf(sim_pi[, 366], lag.max = 2000, plot = FALSE)
+plot(acf_plot, main = c('Autocorrelation for day 366'),  xlab = 'Autocorrelation interval', ylab = 'Correlation')
+
+acf_plot <- acf(sim_sigsq, lag.max = 50, plot = FALSE)
+plot(acf_plot, main = 'Autocorrelation sigma squared', xlab = 'Autocorrelation interval', ylab = 'Correlation', ylim = c(-0.03, 0.03))
+```
+
+```{r}
+# Means
+print('Means:')
+for (day in c(1, 201, 366)){
+  print(paste('Day ', day, ': ', mean(sim_pi[, day])))
+}
+print(paste('Sigma: ', mean(sim_sigsq)))
+```
+
+```{r}
+# 95% credible intervals
+print('95 % credible intervals')
+for (day in c(1, 201, 366)){
+  interval <- unname(quantile(sim_pi[, day], probs = c(0.025, 0.975)))
+  print(paste('Day ', day, ': ', interval[1], ', ', interval[2]))
+}
+interval <- unname(quantile(sim_sigsq, probs = c(0.025, 0.975)))
+print(paste('Sigma: ', interval[1], ', ', interval[2]))
+```
+
+```{r}
+# We estimate tau  to be the mean of its values after the burn-in period
+tau_est <- unname(colMeans(sim_pi))
+
+# Plot to compare tau estimate (pi) and day rain probability (y_t/n_t)
+plot(rain$n.rain/rain$n.years, main = 'Comparison of tau and y_t/n_t', ylab='', xlab = 't', col = 'Red')
+points(tau_est)
+lines(tau_est + )
+lines(tau_est - )
+
+legend('topleft', legend=c(TeX(r'($\pi(\tau_t)$)'), TeX(r'($y_t/n_t$)')), col=c("black", "red"), pch=c(1,1))
+```
+```{r}
+
+```
 
 ## f)
 
