@@ -620,6 +620,10 @@ We see that the computation time is far less than using Markov chains, and compa
 ```{r}
 plot(mod$summary.fitted.values$mean, ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't',
      main = TeX(r'(Predicted values for $\pi(\tau_t)$)'))
+points(tau_est, col = 'red')
+legend('topleft', legend=c('INLA','MCMC'),
+       col=c("black", "red"), pch=c(1,1))
+
 inla_print_ci <- function(mod){
   I <- c(1,201,366)
   print('INLA 95% CIs for pi(tau_t):')
@@ -637,4 +641,52 @@ for (day in c(1, 201, 366)){
 }
 
 ```
+Comparing INLA to MCMC we find that the predictions and CIs are very similar, even though INLA was much quicker.
+
+Since we don't have a intercept it doesn't have a prior.
+
+## b)
+
+We compare our control.inla to the more robust laplace and grid control.inla
+
+```{r}
+compare_inla <- function(){
+  loginvgamma = "expression:
+                  a = 2;
+                  b = 0.05;
+                  precision = exp(log_precision);
+                  logdens = log(b^a) - lgamma(a)
+                  - (a+1)*(log_precision) - b/precision;
+                  return(logdens);"
+  
+  hyper = list(prec = list(prior = loginvgamma))
+
+  
+  control.inla = list(strategy="laplace", int.strategy="grid")
+  mod <- inla(n.rain ~ -1 + f(day, model="rw1", constr=FALSE, hyper = hyper),
+              data=rain, Ntrials=n.years, control.compute=list(config = TRUE),
+              family="binomial", verbose=TRUE, control.inla=control.inla)
+  
+  return(mod)
+  
+}
+mod2 <- compare_inla()
+
+plot(mod2$summary.fitted.values$mean, ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't',
+     main = TeX(r'(Predicted values for $\pi(\tau_t)$, Laplace, Grid)'))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
