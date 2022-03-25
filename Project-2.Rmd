@@ -300,13 +300,19 @@ mcmc <- function(N){
   )
 }
 
-mcmc_results <- mcmc(5000)
 ```
 
 ```{r}
+mcmc_results <- mcmc(5000)
+```
+
+
+```{r}
+mean_pi <- apply(mcmc_results$pi[200:5000,], 2, mean)
 plot(rain$n.rain/rain$n.years, ylab='', xlab = 't', col = 'Red')
-points(mcmc_results$pi[5000,])
-legend('topleft', legend=c(TeX(r'($\pi(\tau_t)$)'), TeX(r'($y_t/n_t$)')), col=c("black", "red"), pch=c(1,1))
+points(mean_pi)
+legend('topleft', legend=c(TeX(r'($\pi(\tau_t)$)'),TeX(r'($y_t/n_t$)')),
+       col=c("black", "red"), pch=c(1,1))
 ```
 
 
@@ -420,19 +426,78 @@ mcmc_block<- function(N,M){
   
   sigma_squared[N+1] <- sigma_squared[N]
   
-  t <- proc.time()[3]
-  print('Processing time:')
-  print(t-t0)
+  dt <- proc.time()[3] - t0
+  #print('Processing time:')
+  #print(dt)
   
-  result <- list(pi = apply(tau, 2, pi_func), sigma_squared = sigma_squared)
+  result <- list(pi = apply(tau, 2, pi_func), sigma_squared = sigma_squared, dt = dt)
   
   return(result)
 }
-blockres <- mcmc_block(5000,50)
+```
+
+
+We explore different values for the block size,
+```{r}
+explore_M <- function(){
+  M <- c(4,15,30,60,90,120,150)
+  I <- 1:length(M)
+  fixed_t <- I*0
+  
+  for (i in I){
+    res <- mcmc_block(1,M[i])
+    fixed_t[i] <- res$dt
+  }
+  plot(M,fixed_t, xlab = 'block size', ylab = 'time', main = 'Time for setup + precomputations')
+  
+  itr_t <- I*0
+  
+  itr <- 1000
+  for (i in I){
+    res <- mcmc_block(itr,M[i])
+    itr_t[i] <- (res$dt-fixed_t[i])/itr
+  }
+  plot(M,itr_t, xlab = 'block size', ylab = 'time', main = 'Extra time per iteration')
+  
+  tot_t <- function(t0,ti,itr){
+    t <- t0+ti*itr
+    return(t)
+  }
+  
+  itrs <- c(1:1000)*10
+  plot(itrs,tot_t(fixed_t[1],itr_t[1],itrs), type = "l",
+       col = 1, xlab = 'iterations', ylab = 'time', main = 'Total computation time')
+  for (i in 2:length(M)){
+    lines(itrs,tot_t(fixed_t[i],itr_t[i],itrs), col = i)
+  }
+  legend('topleft',
+         legend= M,
+         col= I,
+         lty = 1)
+  
+}
 ```
 
 ```{r}
-plot(blockres$pi[5000,], ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't')
+explore_M()
+```
+From having run the exporation a few times we observe quite a bit of variance when it comes to the computation times, ecpecialy for block sizes of 90, 120 and 150, which can cause some issues like negative time per iteration, or the time per iteration jumping up for one size then going back down for the next. Better method would be to find calulation times for different amounts of iterations for each block size, and do linear regresion, this would however take a very long time.
+
+However we can still observe some trends, the the precomputation time increases exponentaly with increesing block size, but the time per iteration decreses with block size. We find that a block size of 60 hits a nice balance of low precomputation times and low time per iteration.
+
+Finaly we check that the predictions for $\pi(\tau)$ are reasonable,
+```{r}
+blockres <- mcmc_block(5000,60)
+```
+
+```{r}
+block_mean_pi <- apply(blockres$pi[200:5000,], 2, mean)
+print(blockres$dt)
+plot(mean_pi, ylab= TeX(r'($\pi(\tau_t)$)') , xlab = 't', col = 'red',
+     main = TeX(r'(Compairing predictions for $\pi(\tau_t)$ using block update and single site)'))
+points(block_mean_pi)
+legend('topleft', legend=c('Block','Single site'),
+       col=c("black", "red"), pch=c(1,1))
 ```
 
 
@@ -440,6 +505,7 @@ plot(blockres$pi[5000,], ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't')
 # Problem 2
 
 ## a)
+Since there isn't a bulit in inverse gamma prior (at least that we could find), we implement it ourself using “Expression”, remembering to implement it on a log scale.
 
 ```{r}
 use_INLA <- function(){
@@ -473,5 +539,19 @@ use_INLA <- function(){
 mod <- use_INLA()
 ```
 
+We see that the computation time is far less than using Markov chains, and compairing the predictions and 95% CIs:
+```{r}
+plot(mod$summary.fitted.values$mean, ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't',
+     main = TeX(r'(Predicted values for $\pi(\tau_t)$)'))
+print_ci <- function(mod){
+  I <- c(1,201,366)
+  print('95% CIs for pi(tau_t):')
+  for (i in I){
+    print(paste('t =',i, ': [', mod$summary.fitted.values$`0.025quant`[i], ',', 
+                mod$summary.fitted.values$`0.975quant`[i], ']'))
+  }
+}
+print_ci(mod)
 
+```
 
