@@ -301,56 +301,30 @@ mcmc <- function(N){
 }
 ```
 
-# ```{r}
-# # Equi-taled credible interval. 
-# # Finds an interval where we estimate a minimum of 95% chance of getting new values
-# cred_int <- function(vec){
-#   vec <- sort(vec)
-#   len <- length(vec)
-#   size <- ceiling(0.95 * len)
-#   start_index <- floor((len - size) / 2) + 1
-# 
-#   list(vec[start_index], vec(start_index + size))
-# }
-# ```
 
 ```{r}
-# Simulation
+# Run sampler
 N = 5000
 mcmc_sim <- mcmc(N)
-sim_pi <- matrix(unlist(mcmc_sim[1]), ncol = 366)
-sim_sigsq <- unlist(mcmc_sim[2])
-```
-
-We can set a burn-in period by looking at the plots below. The trace plots for day 1 and 366 drop fast in the first 150 simulations. Day 201 has an initial value close to its mean result and we therefore do not observe any unusual change in the beginning.
-
-The autocorrelation plots support this burn-in period. It shows that $\pi$ is correlated to its closest (approximately) 150  values.
-
-The sigma squared converges much faster, and we see there is only a correlation to the 10 closest sigmas.
-
-We remove the first 200 simulations to remove the effect of the burn in period.
-
-```{r}
-# Burn in removal
-sim_pi <- sim_pi[200:N, ]
-sim_sigsq <- sim_sigsq[200:N]
-N_new <- N - 200
+sim_pi <- mcmc_sim$pi
+sim_sigsq <- mcmc_sim$sigma_squared
 ```
 
 ```{r}
 # Traceplots
-plot(sim_pi[, 1], main = c('Rain probability trace day 1'), xlab = 'Simulation #', ylab = 'Rain probability')
-plot(sim_pi[, 201], main = c('Rain probability trace day 201'), xlab = 'Simulation #', ylab = 'Rain probability')
-plot(sim_pi[, 366], main = c('Rain probability trace day 366'), xlab = 'Simulation #', ylab = 'Rain probability')
-plot(1:N, sim_sigsq, main = 'Sigma squared trace', xlab = 'Simulation #', ylab = 'Sigma squared', ylim = c(0, 0.01))
+plot(sim_pi[, 1], main = c('Rain probability trace day 1'), xlab = 'Iteration', ylab = 'Rain probability')
+plot(sim_pi[, 201], main = c('Rain probability trace day 201'), xlab = 'Iteration', ylab = 'Rain probability')
+plot(sim_pi[, 366], main = c('Rain probability trace day 366'), xlab = 'Iteration', ylab = 'Rain probability')
+print(length(sim_sigsq))
+plot(1:N, sim_sigsq, main = 'Sigma squared trace', xlab = 'Iteration', ylab = 'Sigma squared', ylim = c(0, 0.01))
 ```
 
 ```{r}
 # Histogram
-hist(sim_pi[, day], main = c('Day 1 rain probability histogram') freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
-hist(sim_pi[, day], main = c('Day 201 rain probability histogram') freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
-hist(sim_pi[, day], main = c('Day 366 rain probability histogram') freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
-hist(sim_sigsq, main = 'Sigma squared histogram' freq = TRUE, xlab = 'Sigma squared', ylab = 'Frequency', xlim = c(-0.1, 0.1), breaks = 0.001)
+hist(sim_pi[, 1], main = c('Day 1 rain probability histogram'), freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
+hist(sim_pi[, 201], main = c('Day 201 rain probability histogram'), freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
+hist(sim_pi[, 366], main = c('Day 366 rain probability histogram'), freq = TRUE, xlab = 'Rain probability', ylab = 'Frequency')
+hist(sim_sigsq, main = 'Sigma squared histogram', freq = TRUE, xlab = 'Sigma squared', ylab = 'Frequency')
 ```
 
 ```{r}
@@ -366,6 +340,21 @@ plot(acf_plot, main = c('Autocorrelation for day 366'),  xlab = 'Autocorrelation
 
 acf_plot <- acf(sim_sigsq, lag.max = 50, plot = FALSE)
 plot(acf_plot, main = 'Autocorrelation sigma squared', xlab = 'Autocorrelation interval', ylab = 'Correlation', ylim = c(-0.03, 0.03))
+```
+
+We can set a burn-in period by looking at the plots above. The trace plots for day 1 and 366 drop fast in the first 150 iterations. Day 201 has an initial value close to its mean result and we therefore do not observe any unusual change in the beginning.
+
+The autocorrelation plots support this burn-in period. It shows that $\pi$ is correlated to its closest (approximately) 150  values.
+
+The sigma squared converges much faster, and we see there is only a correlation to the 10 closest sigmas.
+
+We remove the first 200 simulations to remove the effect of the burn in period.
+
+```{r}
+# Burn in removal
+sim_pi <- sim_pi[201:N, ]
+sim_sigsq <- sim_sigsq[201:N]
+N_new <- (N - 200)
 ```
 
 ```{r}
@@ -393,16 +382,16 @@ print(paste('Sigma: ', interval[1], ', ', interval[2]))
 tau_est <- unname(colMeans(sim_pi))
 
 # Plot to compare tau estimate (pi) and day rain probability (y_t/n_t)
-plot(rain$n.rain/rain$n.years, main = 'Comparison of tau and y_t/n_t', ylab='', xlab = 't', col = 'Red')
+plot(rain$n.rain/rain$n.years, main = TeX(r'(Comparison of $\pi(\tau_t)$ and $y_t/n_t$)'),
+     ylab='', xlab = 't', col = 'Red')
 points(tau_est)
-lines(tau_est + )
-lines(tau_est - )
 
 legend('topleft', legend=c(TeX(r'($\pi(\tau_t)$)'), TeX(r'($y_t/n_t$)')), col=c("black", "red"), pch=c(1,1))
 ```
-```{r}
 
-```
+In the plot we see that $y_t/n_t$ follows $\tau_t$, but has a much higher variance. $\tau_t$ therefore seems to be a good prediction for rain probability in the future.
+
+The traceplots converge quickly. The traceplots show a rapid change at the beginning (within the first 150 simulations, 10 for $\sigma^2$). Then it stabilizes at keeps a regular (random) pattern around the mean. This is a good indication for Markov chain convergence.
 
 ## f)
 
@@ -567,7 +556,7 @@ explore_M <- function(){
 ```
 
 ```{r}
-explore_M()
+#explore_M()
 ```
 From having run the exporation a few times we observe quite a bit of variance when it comes to the computation times, ecpecialy for block sizes of 90, 120 and 150, which can cause some issues like negative time per iteration, or the time per iteration jumping up for one size then going back down for the next. Better method would be to find calulation times for different amounts of iterations for each block size, and do linear regresion, this would however take a very long time.
 
@@ -575,13 +564,13 @@ However we can still observe some trends, the the precomputation time increases 
 
 Finaly we check that the predictions for $\pi(\tau)$ are reasonable,
 ```{r}
-blockres <- mcmc_block(5000,60)
+blockres <- mcmc_block(N,60)
 ```
 
 ```{r}
-block_mean_pi <- apply(blockres$pi[200:5000,], 2, mean)
+block_mean_pi <- apply(blockres$pi[200:N,], 2, mean)
 print(blockres$dt)
-plot(mean_pi, ylab= TeX(r'($\pi(\tau_t)$)') , xlab = 't', col = 'red',
+plot(tau_est, ylab= TeX(r'($\pi(\tau_t)$)') , xlab = 't', col = 'red',
      main = TeX(r'(Compairing predictions for $\pi(\tau_t)$ using block update and single site)'))
 points(block_mean_pi)
 legend('topleft', legend=c('Block','Single site'),
@@ -631,15 +620,21 @@ We see that the computation time is far less than using Markov chains, and compa
 ```{r}
 plot(mod$summary.fitted.values$mean, ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't',
      main = TeX(r'(Predicted values for $\pi(\tau_t)$)'))
-print_ci <- function(mod){
+inla_print_ci <- function(mod){
   I <- c(1,201,366)
-  print('95% CIs for pi(tau_t):')
+  print('INLA 95% CIs for pi(tau_t):')
   for (i in I){
     print(paste('t =',i, ': [', mod$summary.fitted.values$`0.025quant`[i], ',', 
                 mod$summary.fitted.values$`0.975quant`[i], ']'))
   }
 }
-print_ci(mod)
+inla_print_ci(mod)
+
+print('MCMC 95% CIs for pi(tau_t):')
+for (day in c(1, 201, 366)){
+  interval <- unname(quantile(sim_pi[, day], probs = c(0.025, 0.975)))
+  print(paste('t = ', day, ': [', interval[1], ', ', interval[2], ']'))
+}
 
 ```
 
