@@ -435,3 +435,43 @@ blockres <- mcmc_block(5000,50)
 plot(blockres$pi[5000,], ylab=TeX(r'($\pi(\tau_t)$)'), xlab = 't')
 ```
 
+
+
+# Problem 2
+
+## a)
+
+```{r}
+use_INLA <- function(){
+  t0 <-proc.time()[3]
+  
+  loginvgamma = "expression:
+                  a = 2;
+                  b = 0.05;
+                  precision = exp(log_precision);
+                  logdens = log(b^a) - lgamma(a)
+                  - (a+1)*(log_precision) - b/precision;
+                  return(logdens);"
+  
+  hyper = list(prec = list(prior = loginvgamma))
+  
+  
+  control.inla = list(strategy="simplified.laplace", int.strategy="ccd")
+  mod <- inla(n.rain ~ -1 + f(day, model="rw1", constr=FALSE, hyper = hyper),
+              data=rain, Ntrials=n.years, control.compute=list(config = TRUE),
+              family="binomial", verbose=TRUE, control.inla=control.inla)
+  
+  
+  
+  
+  t <-proc.time()[3]
+  print('Processing time:')
+  print(t-t0)
+  
+  return(mod)
+}
+mod <- use_INLA()
+```
+
+
+
